@@ -302,11 +302,18 @@ function sbLer(codigo){
 }
 
 function sbPresenca(codigo){
-  var patch={sessoes:{}};
-  patch.sessoes[mySessao]={ts:Date.now(), nome: meuApelido||'Anônimo'};
-  fetch(SB_URL+'/rest/v1/listas?codigo=eq.'+encodeURIComponent(codigo),{
-    method:'PATCH',headers:Object.assign({},SB_H,{'Prefer':'return=minimal'}),body:JSON.stringify(patch)
-  }).catch(function(){});
+  // Primeiro lê as sessões atuais, depois faz merge com a nossa
+  sbLer(codigo).then(function(row){
+    var sessoes = row.sessoes || {};
+    sessoes[mySessao] = {ts: Date.now(), nome: meuApelido || 'Anônimo'};
+    fetch(SB_URL+'/rest/v1/listas?codigo=eq.'+encodeURIComponent(codigo),{
+      method:'PATCH',
+      headers:Object.assign({},SB_H,{'Prefer':'return=minimal'}),
+      body:JSON.stringify({sessoes: sessoes})
+    }).catch(function(){});
+  }).catch(function(){
+    // Se não existe ainda, ignora
+  });
 }
 
 var sessoesSalvas = {}; // guarda {sessao: {ts, nome}} para o modal
@@ -316,18 +323,29 @@ var mySessao=(Date.now().toString(36)+Math.random().toString(36).slice(2,5)).toU
 
 function startPoll(codigo){
   stopPoll();
+  // Registra própria sessão imediatamente no mapa local
+  sessoesSalvas[mySessao] = {ts: Date.now(), nome: meuApelido || 'Anônimo'};
+  atualizarBadges(true, 1);
   sbPresenca(codigo);
   pollTimer=setInterval(function(){
     sbPresenca(codigo);
     sbLer(codigo).then(function(row){
-      var agora=Date.now(),s=row.sessoes||{},ativos=0;
+      var agora=Date.now(), s=row.sessoes||{}, ativos=0;
       sessoesSalvas={};
       for(var k in s){
         var entry=s[k];
         var ts=typeof entry==='object'?entry.ts:entry;
-        if(agora-ts<10000){ativos++;sessoesSalvas[k]=entry;}
+        if(agora-ts<12000){ // 12s de tolerância
+          ativos++;
+          sessoesSalvas[k]=entry;
+        }
       }
-      atualizarBadges(true, Math.max(1,ativos));
+      // Garante que eu mesmo estou sempre contado
+      if(!sessoesSalvas[mySessao]){
+        sessoesSalvas[mySessao]={ts:Date.now(), nome: meuApelido||'Anônimo'};
+        ativos++;
+      }
+      atualizarBadges(true, ativos);
       var h=JSON.stringify(row.itens);
       if(h===lastHash)return;
       lastHash=h;
@@ -697,44 +715,57 @@ document.getElementById('btn-imp').addEventListener('click',function(){
 
 // MODAL QUEM ESTÁ ONLINE
 document.getElementById('ppl-badge').addEventListener('click', function(){
+  if(!estado[abaAtiva].isCollab) return; // só abre se estiver em lista colaborativa
   var lista = document.getElementById('online-lista');
   lista.innerHTML = '';
   var agora = Date.now();
-  var encontrou = false;
+  var usuarios = [];
 
+  // Coleta todos online (incluindo eu)
   for(var k in sessoesSalvas){
     var entry = sessoesSalvas[k];
     var ts = typeof entry==='object' ? entry.ts : entry;
-    if(agora - ts > 10000) continue;
-    encontrou = true;
+    if(agora - ts > 12000) continue;
     var nome = (typeof entry==='object' && entry.nome) ? entry.nome : 'Anônimo';
     var isMe = k === mySessao;
+    usuarios.push({nome: nome, isMe: isMe, ts: ts});
+  }
 
+  // Garante que o próprio usuário sempre aparece
+  var mePresente = usuarios.some(function(u){ return u.isMe; });
+  if(!mePresente){
+    usuarios.unshift({nome: meuApelido||'Anônimo', isMe: true, ts: Date.now()});
+  }
+
+  // Ordena: eu primeiro, depois os outros por nome
+  usuarios.sort(function(a,b){
+    if(a.isMe) return -1;
+    if(b.isMe) return 1;
+    return a.nome.localeCompare(b.nome);
+  });
+
+  usuarios.forEach(function(u){
     var row = document.createElement('div'); row.className = 'user-item';
-    var av  = document.createElement('div'); av.className = 'user-avatar' + (isMe?' me':'');
-    av.textContent = nome.charAt(0).toUpperCase() || '?';
-    var info = document.createElement('div');
-    var nm   = document.createElement('div'); nm.className = 'user-name';
-    nm.textContent = nome + (isMe ? ' (você)' : '');
-    var tag  = document.createElement('div'); tag.className = 'user-tag';
-    tag.textContent = 'Online agora';
+
+    var av = document.createElement('div');
+    av.className = 'user-avatar' + (u.isMe ? ' me' : '');
+    av.textContent = u.nome.charAt(0).toUpperCase() || '?';
+
+    var info = document.createElement('div'); info.style.flex='1';
+    var nm = document.createElement('div'); nm.className = 'user-name';
+    nm.textContent = u.nome + (u.isMe ? ' (você)' : '');
+    var tag = document.createElement('div'); tag.className = 'user-tag';
+    tag.textContent = '● Online agora';
+    tag.style.color = '#30D158';
+    tag.style.fontSize = '12px';
+    tag.style.marginTop = '2px';
+
     info.appendChild(nm); info.appendChild(tag);
     row.appendChild(av); row.appendChild(info);
     lista.appendChild(row);
-  }
+  });
 
-  // Sempre mostra pelo menos o próprio usuário
-  if(!encontrou){
-    var row=document.createElement('div');row.className='user-item';
-    var av=document.createElement('div');av.className='user-avatar me';
-    av.textContent=(meuApelido||'?').charAt(0).toUpperCase();
-    var info=document.createElement('div');
-    var nm=document.createElement('div');nm.className='user-name';nm.textContent=(meuApelido||'Anônimo')+' (você)';
-    var tag=document.createElement('div');tag.className='user-tag';tag.textContent='Online agora';
-    info.appendChild(nm);info.appendChild(tag);row.appendChild(av);row.appendChild(info);lista.appendChild(row);
-  }
-
-  var total = lista.children.length;
+  var total = usuarios.length;
   document.getElementById('online-sub').textContent =
     total === 1 ? '1 pessoa usando esta lista agora.' : total + ' pessoas usando esta lista agora.';
 
