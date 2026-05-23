@@ -105,12 +105,12 @@
             </div>
             <div class="panel-body">
               <div style="display:flex;flex-direction:column;gap:7px;">
-                <button class="btn-secondary" onclick="app._applyQuickPreset('dual-fhd')"     style="justify-content:flex-start;font-size:12px;">↔↔ Dual Full HD (2× 1920×1080)</button>
-                <button class="btn-secondary" onclick="app._applyQuickPreset('triple-fhd')"   style="justify-content:flex-start;font-size:12px;">↔↔↔ Triple Full HD (3× 1920×1080)</button>
-                <button class="btn-secondary" onclick="app._applyQuickPreset('dual-4k')"      style="justify-content:flex-start;font-size:12px;">↔↔ Dual 4K (2× 3840×2160)</button>
-                <button class="btn-secondary" onclick="app._applyQuickPreset('vertical-pair')" style="justify-content:flex-start;font-size:12px;">↕↔ Vertical + Horizontal</button>
-                <button class="btn-secondary" onclick="app._applyQuickPreset('gaming-triple')" style="justify-content:flex-start;font-size:12px;">↕↔↕ Gamer Triple (V+H+V)</button>
-                <button class="btn-secondary" onclick="app._applyQuickPreset('ultrawide')"    style="justify-content:flex-start;font-size:12px;">↔ Single UltraWide 5120×1440</button>
+                <button class="btn-secondary" data-preset="dual-fhd"     style="justify-content:flex-start;font-size:12px;">↔↔ Dual Full HD (2× 1920×1080)</button>
+                <button class="btn-secondary" data-preset="triple-fhd"   style="justify-content:flex-start;font-size:12px;">↔↔↔ Triple Full HD (3× 1920×1080)</button>
+                <button class="btn-secondary" data-preset="dual-4k"      style="justify-content:flex-start;font-size:12px;">↔↔ Dual 4K (2× 3840×2160)</button>
+                <button class="btn-secondary" data-preset="vertical-pair" style="justify-content:flex-start;font-size:12px;">↕↔ Vertical + Horizontal</button>
+                <button class="btn-secondary" data-preset="gaming-triple" style="justify-content:flex-start;font-size:12px;">↕↔↕ Gamer Triple (V+H+V)</button>
+                <button class="btn-secondary" data-preset="ultrawide"    style="justify-content:flex-start;font-size:12px;">↔ Single UltraWide 5120×1440</button>
               </div>
             </div>
           </div>
@@ -189,7 +189,7 @@
                 </button>
               </div>
               <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">
-                ⚙ Add your API key in <button onclick="app._showSettingsModal()" style="background:none;border:none;color:var(--neon-blue);cursor:pointer;font-family:var(--font-mono);font-size:11px;padding:0;">Settings</button>
+                ⚙ Adicione sua chave em <button id="btn-open-settings-2" style="background:none;border:none;color:var(--neon-blue);cursor:pointer;font-family:var(--font-mono);font-size:11px;padding:0;">Settings</button>
               </div>
             </div>
           </div>
@@ -257,15 +257,15 @@
               <!-- Prompt suggestions -->
               <div style="margin-top:10px;">
                 <div class="section-label">Quick Prompts</div>
-                <div style="display:flex;flex-wrap:wrap;gap:5px;">
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Futuristic Egyptian pyramids under a giant eclipse moon, atmospheric fog, ancient meets sci-fi">🏛 Pyramid Eclipse</button>
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Deep space nebula with bioluminescent cosmic entities, ultra detailed star formation, quantum foam">🌌 Deep Space</button>
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Cyberpunk megacity at night, rain, neon reflections on wet streets, flying vehicles, holographic ads">🌆 Cyberpunk City</button>
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Ancient dragon deity emerging from volcanic eruption, molten rivers, ash clouds, epic scale">🐉 Dragon Volcano</button>
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Underwater bioluminescent ocean abyss, giant ancient ruins, sea creatures, ethereal blue light">🌊 Abyss Ruins</button>
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Nordic fjord at winter solstice, aurora borealis, ice crystals, Viking longships, moonlight">❄ Nordic Aurora</button>
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Abstract quantum realm, fractal dimensions, light refraction, geometric beings, infinite recursion">🔮 Quantum Realm</button>
-                  <button class="style-chip" onclick="document.getElementById('prompt-input').value=this.dataset.p" data-p="Post-apocalyptic overgrown city, nature reclaiming skyscrapers, dramatic storm clouds, lone survivor">🌿 Reclaimed City</button>
+                <div style="display:flex;flex-wrap:wrap;gap:5px;" id="quick-prompts">
+                  <button class="style-chip" data-qp="Futuristic Egyptian pyramids under a giant eclipse moon, atmospheric fog, ancient meets sci-fi">🏛 Pyramid Eclipse</button>
+                  <button class="style-chip" data-qp="Deep space nebula with bioluminescent cosmic entities, ultra detailed star formation, quantum foam">🌌 Deep Space</button>
+                  <button class="style-chip" data-qp="Cyberpunk megacity at night, rain, neon reflections on wet streets, flying vehicles, holographic ads">🌆 Cyberpunk City</button>
+                  <button class="style-chip" data-qp="Ancient dragon deity emerging from volcanic eruption, molten rivers, ash clouds, epic scale">🐉 Dragon Volcano</button>
+                  <button class="style-chip" data-qp="Underwater bioluminescent ocean abyss, giant ancient ruins, sea creatures, ethereal blue light">🌊 Abyss Ruins</button>
+                  <button class="style-chip" data-qp="Nordic fjord at winter solstice, aurora borealis, ice crystals, Viking longships, moonlight">❄ Nordic Aurora</button>
+                  <button class="style-chip" data-qp="Abstract quantum realm, fractal dimensions, light refraction, geometric beings, infinite recursion">🔮 Quantum Realm</button>
+                  <button class="style-chip" data-qp="Post-apocalyptic overgrown city, nature reclaiming skyscrapers, dramatic storm clouds, lone survivor">🌿 Reclaimed City</button>
                 </div>
               </div>
 
@@ -352,7 +352,7 @@
           <h2 style="font-family:var(--font-display);font-size:16px;font-weight:700;">Generation History</h2>
           <p style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);margin-top:3px;">Last 20 generations — thumbnails stored locally</p>
         </div>
-        <button class="btn-secondary" onclick="if(confirm('Clear all history?')){localStorage.removeItem('iw_history');app._renderHistory();}">🗑 Clear History</button>
+        <button class="btn-secondary" id="btn-clear-history">🗑 Limpar Histórico</button>
       </div>
       <div id="history-grid"></div>
     </div>
@@ -486,57 +486,6 @@
 <script src="modules/preview.js"></script>
 <script src="app.js"></script>
 
-<!-- Quick presets & extra bindings inline -->
-<script>
-// ── Quick Preset loader ────────────────────────────────────────────────────
-InfinityWallApp.prototype._applyQuickPreset = function(preset) {
-  this.layout.monitors = [];
-  this.layout.nextId   = 1;
-
-  const add = (name, w, h, orient, posX, posY) => {
-    this.layout.monitors.push({
-      id: this.layout.nextId++,
-      name, width: w, height: h,
-      orientation: orient,
-      posX: posX || 0, posY: posY || 0,
-      bezel: 8, enabled: true,
-    });
-  };
-
-  switch(preset) {
-    case 'dual-fhd':
-      add('Monitor 1', 1920, 1080, 'horizontal', 0,    0);
-      add('Monitor 2', 1920, 1080, 'horizontal', 1940, 0);
-      break;
-    case 'triple-fhd':
-      add('Monitor 1', 1920, 1080, 'horizontal', 0,    0);
-      add('Monitor 2', 1920, 1080, 'horizontal', 1940, 0);
-      add('Monitor 3', 1920, 1080, 'horizontal', 3880, 0);
-      break;
-    case 'dual-4k':
-      add('Monitor 1', 3840, 2160, 'horizontal', 0,    0);
-      add('Monitor 2', 3840, 2160, 'horizontal', 3860, 0);
-      break;
-    case 'vertical-pair':
-      add('Monitor 1', 1080, 1920, 'vertical',   0,    0);
-      add('Monitor 2', 1920, 1080, 'horizontal', 1100, 420);
-      break;
-    case 'gaming-triple':
-      add('Monitor L', 1080, 1920, 'vertical',   0,    0);
-      add('Monitor C', 2560, 1440, 'horizontal', 1100, 240);
-      add('Monitor R', 1080, 1920, 'vertical',   3680, 0);
-      break;
-    case 'ultrawide':
-      add('UltraWide', 5120, 1440, 'horizontal', 0, 0);
-      break;
-  }
-
-  this.layout._notify();
-  this._renderMonitorList();
-  this._showToast(`Preset "${preset}" applied`, 'success');
-  this._switchTab('setup');
-};
-</script>
 
 </body>
 </html>
