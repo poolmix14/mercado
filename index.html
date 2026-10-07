@@ -907,29 +907,25 @@ function encodItens(itens){
 function montarLink(itens){
   return location.origin + location.pathname + '?lista=' + encodItens(itens);
 }
-// Encurtadores (opcional, melhor esforço). Falham rápido e caem no link comprimido.
-function _fetchT(url,opts,ms){
-  return new Promise(function(res,rej){
-    var ctrl=('AbortController' in window)?new AbortController():null;
-    var to=setTimeout(function(){ if(ctrl)ctrl.abort(); rej(new Error('timeout')); }, ms||4000);
-    opts=opts||{}; if(ctrl)opts.signal=ctrl.signal;
-    fetch(url,opts).then(function(r){clearTimeout(to);res(r);},function(e){clearTimeout(to);rej(e);});
+// ── FIREBASE (Realtime Database via REST) — guarda a lista e devolve código curto ──
+var FB_URL='https://mercado-6b1aa-default-rtdb.firebaseio.com';
+function fbSalvar(code,min){
+  return fetch(FB_URL+'/listas/'+code+'.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({i:min,t:Date.now()})
+  }).then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); });
+}
+function fbLer(code){
+  return fetch(FB_URL+'/listas/'+encodeURIComponent(code)+'.json')
+    .then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); });
+}
+function itensMin(itens){
+  return itens.map(function(it){
+    var o={n:it.nome};
+    if(it.qtd && it.qtd!=='—') o.q=it.qtd;
+    if(it.ok) o.k=1;
+    return o;
   });
-}
-function _encBase(host,longo){
-  return _fetchT('https://'+host+'/create.php?format=simple&url='+encodeURIComponent(longo))
-    .then(function(r){return r.text();})
-    .then(function(t){t=(t||'').trim();if(/^https?:\/\//i.test(t))return t;throw new Error(t||'falhou');});
-}
-function _encClean(longo){
-  return _fetchT('https://cleanuri.com/api/v1/shorten',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'url='+encodeURIComponent(longo)})
-    .then(function(r){return r.json();})
-    .then(function(j){if(j&&j.result_url)return j.result_url;throw new Error('falhou');});
-}
-function encurtar(longo){
-  return _encBase('is.gd',longo)
-    .catch(function(){return _encBase('v.gd',longo);})
-    .catch(function(){return _encClean(longo);});
 }
 var linkCurto=false;
 function mostrarLinkPronto(){
@@ -937,7 +933,7 @@ function mostrarLinkPronto(){
   document.getElementById('s3-ok').style.display='';
   document.getElementById('s3-link').textContent=shrLink;
   document.getElementById('btn-share-link').style.display=(navigator.share?'':'none');
-  document.getElementById('s3-sub').textContent = linkCurto ? '' : 'Link compacto (o encurtador não respondeu agora, mas este funciona igual).';
+  document.getElementById('s3-sub').textContent = linkCurto ? '' : 'Não consegui salvar na nuvem agora — este link funciona igual, só é mais longo.';
 }
 function gerarLink(){
   var itens=listaAtiva().itens;
@@ -953,16 +949,22 @@ function gerarLink(){
   if(location.protocol==='file:'){
     load.style.display='none';
     var err=document.getElementById('s3-err');err.style.display='';
-    err.querySelector('p').innerHTML='Você abriu o app pelo arquivo no PC (file://).<br>Publique no Netlify e abra pelo endereço https:// — só assim o link funciona para outras pessoas.';
+    err.querySelector('p').innerHTML='Você abriu o app pelo arquivo no PC (file://).<br>Abra pelo endereço https://poolmix14.github.io/mercado/ — só assim o link funciona para outras pessoas.';
     document.getElementById('btn-retry-link').style.display='none';
     return;
   }
   document.getElementById('btn-retry-link').style.display='';
-  var longo=montarLink(itens);
-  shrLink=longo;linkCurto=false;
-  encurtar(longo)
-    .then(function(curto){ shrLink=curto;linkCurto=true;mostrarLinkPronto(); })
-    .catch(function(){ shrLink=longo;linkCurto=false;mostrarLinkPronto(); });
+  var code=gerarCodigo();
+  shrLink='';linkCurto=false;
+  fbSalvar(code,itensMin(itens))
+    .then(function(){
+      shrLink=location.origin+location.pathname+'?l='+code;
+      linkCurto=true; mostrarLinkPronto();
+    })
+    .catch(function(){
+      // Nuvem indisponível: cai no link comprimido (sem backend), que abre do mesmo jeito
+      shrLink=montarLink(itens); linkCurto=false; mostrarLinkPronto();
+    });
 }
 document.getElementById('btn-link').addEventListener('click',gerarLink);
 document.getElementById('btn-retry-link').addEventListener('click',gerarLink);
@@ -1318,7 +1320,18 @@ document.addEventListener('visibilitychange', function(){
 // TECLADO ANDROID
 if(window.visualViewport){window.visualViewport.addEventListener('resize',function(){var gap=window.innerHeight-window.visualViewport.height;document.getElementById('fab').style.bottom=gap>100?(gap+10)+'px':'28px';});}
 
-// ABRIR LISTA VIA LINK (?lista=<itens comprimidos>) — tudo offline, sem nuvem
+// ABRIR LISTA VIA LINK: ?l=CODIGO (Firebase) ou ?lista=DADOS (comprimido, offline)
+function minParaItens(arr){
+  if(!Array.isArray(arr)) return null;
+  return arr.map(function(o){
+    return {
+      id:novoId(),
+      nome:String(o.n!=null?o.n:(o.nome!=null?o.nome:'')),
+      qtd:String(o.q!=null?o.q:(o.qtd!=null?o.qtd:'—'))||'—',
+      ok:!!(o.k||o.ok)
+    };
+  }).filter(function(it){return it.nome.trim();});
+}
 function decodLink(raw){
   var arr=null;
   // 1) formato novo: LZString comprimido
@@ -1330,44 +1343,57 @@ function decodLink(raw){
       var a2=JSON.parse(decodeURIComponent(escape(atob(b64)))); if(Array.isArray(a2)) arr=a2;
     }catch(e){}
   }
-  if(!arr) return null;
-  return arr.map(function(o){
-    return {
-      id:novoId(),
-      nome:String(o.n!=null?o.n:(o.nome!=null?o.nome:'')),
-      qtd:String(o.q!=null?o.q:(o.qtd!=null?o.qtd:'—'))||'—',
-      ok:!!(o.k||o.ok)
-    };
-  }).filter(function(it){return it.nome.trim();});
+  return minParaItens(arr);
 }
 (function(){
-  var raw;
-  try{ raw=new URLSearchParams(location.search).get('lista'); }catch(e){ return; }
-  if(!raw) return;
+  var params; try{ params=new URLSearchParams(location.search); }catch(e){ return; }
+  var code=params.get('l'), raw=params.get('lista');
+  if(!code && !raw) return;
   try{ history.replaceState(null,'',location.pathname); }catch(e){} // limpa a URL
-  var itens=decodLink(raw);
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#000;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:inherit';
   document.body.appendChild(ov);
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function botao(txt,bg){var b=document.createElement('button');b.textContent=txt;b.style.cssText='display:block;width:100%;max-width:300px;background:'+bg+';border:none;border-radius:12px;color:#fff;padding:15px;font-size:16px;font-family:inherit;font-weight:600;margin-bottom:10px;cursor:pointer';return b;}
-  if(!itens || !itens.length){
-    ov.innerHTML='<div style="font-size:40px;margin-bottom:12px">⚠️</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Link inválido</div><div style="font-size:13px;color:#8E8E93;line-height:1.5;margin-bottom:22px">Este link de lista está corrompido ou incompleto.</div>';
+  function loading(){ ov.innerHTML='<div style="width:26px;height:26px;border:3px solid #3A3A3C;border-top-color:#0A84FF;border-radius:50%;animation:sp .7s linear infinite;margin-bottom:16px"></div><div style="font-size:15px;color:#8E8E93">Abrindo lista compartilhada…</div>'; }
+  function invalido(){
+    ov.innerHTML='<div style="font-size:40px;margin-bottom:12px">⚠️</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Link inválido</div><div style="font-size:13px;color:#8E8E93;line-height:1.5;margin-bottom:22px">Esta lista não existe mais ou o link está incompleto.</div>';
     var bf=botao('Fechar','#2C2C2E');bf.onclick=function(){ov.remove();};ov.appendChild(bf);
-    return;
   }
-  var n=itens.length;
-  function aplicar(){ listaAtiva().itens=itens; save(); render(); renderAbas(); ov.remove(); }
-  // Lista atual vazia (ex.: primeira vez abrindo): abre direto, nada a perder
-  if(!listaAtiva().itens.length){ aplicar(); return; }
-  ov.innerHTML='<div style="font-size:40px;margin-bottom:12px">📋</div>'
-    +'<div style="font-size:18px;font-weight:700;margin-bottom:8px">Lista compartilhada</div>'
-    +'<div style="font-size:14px;color:#8E8E93;line-height:1.5;margin-bottom:6px">Você recebeu uma lista com '+n+' iten'+(n!==1?'s':'')+'.</div>'
-    +'<div style="font-size:13px;color:#FF9F0A;line-height:1.5;margin-bottom:22px">Ao abrir, ela substitui a lista que você está vendo agora ("'+esc(listaAtiva().nome)+'").</div>';
-  var b1=botao('Abrir e substituir minha lista','#30D158');
-  b1.onclick=aplicar;
-  var b2=botao('Cancelar','#2C2C2E');b2.onclick=function(){ov.remove();};
-  ov.appendChild(b1);ov.appendChild(b2);
+  function erroConexao(){
+    ov.innerHTML='<div style="font-size:40px;margin-bottom:12px">📡</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Sem conexão</div><div style="font-size:13px;color:#8E8E93;line-height:1.5;margin-bottom:22px">Não consegui buscar esta lista agora. Verifique a internet e tente de novo.</div>';
+    var b1=botao('Tentar de novo','#0A84FF');b1.onclick=function(){loading();carregar();};
+    var b2=botao('Fechar','#2C2C2E');b2.onclick=function(){ov.remove();};
+    ov.appendChild(b1);ov.appendChild(b2);
+  }
+  function confirmar(itens){
+    function aplicar(){ listaAtiva().itens=itens; save(); render(); renderAbas(); ov.remove(); }
+    if(!listaAtiva().itens.length){ aplicar(); return; } // lista vazia: abre direto
+    var n=itens.length;
+    ov.innerHTML='<div style="font-size:40px;margin-bottom:12px">📋</div>'
+      +'<div style="font-size:18px;font-weight:700;margin-bottom:8px">Lista compartilhada</div>'
+      +'<div style="font-size:14px;color:#8E8E93;line-height:1.5;margin-bottom:6px">Você recebeu uma lista com '+n+' iten'+(n!==1?'s':'')+'.</div>'
+      +'<div style="font-size:13px;color:#FF9F0A;line-height:1.5;margin-bottom:22px">Ao abrir, ela substitui a lista que você está vendo agora ("'+esc(listaAtiva().nome)+'").</div>';
+    var b1=botao('Abrir e substituir minha lista','#30D158');b1.onclick=aplicar;
+    var b2=botao('Cancelar','#2C2C2E');b2.onclick=function(){ov.remove();};
+    ov.appendChild(b1);ov.appendChild(b2);
+  }
+  function carregar(){
+    if(code){
+      fbLer(code).then(function(row){
+        var arr = row ? (row.i || row.itens || (Array.isArray(row)?row:null)) : null;
+        var itens=minParaItens(arr);
+        if(!itens || !itens.length){ invalido(); return; }
+        confirmar(itens);
+      }).catch(function(){ erroConexao(); });
+    } else {
+      var itens=decodLink(raw);
+      if(!itens || !itens.length){ invalido(); return; }
+      confirmar(itens);
+    }
+  }
+  loading();
+  carregar();
 })();
 
 // INIT
