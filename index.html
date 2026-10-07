@@ -181,8 +181,7 @@ document.head.appendChild(link);
   <!-- Linha 2: abas Lista / Lista Compartilhada + Listas salvas à direita -->
   <div id="abas-wrap">
     <button class="aba ativa" id="aba-local">Lista</button>
-    <button class="aba" id="aba-shared" style="padding-right:6px">Lista Compartilhada</button>
-    <button id="btn-fechar-shared" title="Fechar lista compartilhada para mim" aria-label="Fechar lista compartilhada" style="display:none;flex-shrink:0;background:none;border:none;color:#8E8E93;font-size:16px;line-height:1;cursor:pointer;padding:8px 12px 8px 2px;margin-bottom:-1px;min-height:38px">✕</button>
+    <button class="hbtn" id="btn-limpar" style="font-size:14px;padding:0 14px;border-bottom:2px solid transparent;margin-bottom:-1px;color:#FF453A">Limpar</button>
     <div style="flex:1"></div>
     <button class="hbtn" id="btn-listas-salvas" style="font-size:13px;padding:0 12px;border-bottom:2px solid transparent;margin-bottom:-1px;color:#0A84FF">Listas salvas</button>
   </div>
@@ -195,7 +194,6 @@ document.head.appendChild(link);
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01" stroke="#0A84FF" stroke-width="2" stroke-linecap="round"/></svg>
         Gerar lista do TXT
       </button>
-      <button class="hbtn" id="btn-limpar" style="color:#FF453A">Limpar</button>
       <button class="hbtn" id="btn-shr">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98M21 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM9 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 19a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" stroke="#0A84FF" stroke-width="2" stroke-linecap="round"/></svg>
         Compartilhar
@@ -561,11 +559,7 @@ function save(){ls(KEY,JSON.stringify({listaLocal:listaLocal,listaShared:listaSh
 // ABAS — Local / Compartilhada
 // ══════════════════════════════════════════════════
 function renderAbas(){
-  document.getElementById('aba-local').classList.toggle('ativa', modoAtivo===MODO_LOCAL);
-  document.getElementById('aba-shared').classList.toggle('ativa', modoAtivo===MODO_SHARED);
-  var temShared = !!(listaShared.listaId || (listaShared.itens && listaShared.itens.length));
-  var xb=document.getElementById('btn-fechar-shared');
-  if(xb) xb.style.display = temShared ? '' : 'none';
+  document.getElementById('aba-local').classList.add('ativa');
 }
 
 function trocarModo(modo){
@@ -581,15 +575,9 @@ function trocarModo(modo){
 }
 
 document.getElementById('aba-local').addEventListener('click',function(){trocarModo(MODO_LOCAL);});
-document.getElementById('aba-shared').addEventListener('click',function(){trocarModo(MODO_SHARED);});
 
 // Init badges
 atualizarBadges(false,0);
-if(listaShared.listaId && listaShared.isCollab){
-  modoAtivo=MODO_SHARED;
-  atualizarBadges(true,1);
-  startPoll(listaShared.listaId);
-}
 
 // ══════════════════════════════════════════════════
 // LIVE BADGE
