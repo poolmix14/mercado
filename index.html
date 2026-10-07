@@ -280,12 +280,12 @@ document.head.appendChild(link);
     <div id="s3" style="display:none">
       <div id="s3-load" style="text-align:center;padding:32px;color:#8E8E93"><span class="spin"></span>Gerando link…</div>
       <div id="s3-ok" style="display:none">
-        <div class="nota-v" style="margin-bottom:14px">🔗 Link pronto! Envie para quem quiser — ao abrir, a pessoa vê esta lista.</div>
+        <img id="s3-icon" alt="" style="display:block;width:76px;height:76px;border-radius:18px;margin:6px auto 18px;object-fit:cover">
         <div class="code-box" style="text-align:left;padding:16px 18px">
           <div class="code-lbl" style="margin-bottom:8px">Link da lista</div>
           <div id="s3-link" style="font-size:14px;color:#0A84FF;word-break:break-all;line-height:1.5;font-family:monospace">——</div>
         </div>
-        <div id="s3-sub" style="font-size:12px;color:#FF9F0A;line-height:1.4;margin-bottom:8px;text-align:center"></div>
+        <div id="s3-sub" style="font-size:12px;color:#FF9F0A;line-height:1.4;margin-bottom:8px;text-align:center;display:none"></div>
         <button class="bp" id="btn-share-link" style="display:none;background:#30D158">Compartilhar…</button>
         <button class="bp" id="btn-cp-link">Copiar link</button>
         <button class="bs" id="btn-fch-link">Fechar</button>
@@ -932,8 +932,13 @@ function mostrarLinkPronto(){
   document.getElementById('s3-load').style.display='none';
   document.getElementById('s3-ok').style.display='';
   document.getElementById('s3-link').textContent=shrLink;
+  // reaproveita o ícone do app (apple-touch-icon) sem duplicar o base64
+  var ic=document.getElementById('s3-icon'), src=document.querySelector('link[rel="apple-touch-icon"]');
+  if(ic && src) ic.src=src.href;
   document.getElementById('btn-share-link').style.display=(navigator.share?'':'none');
-  document.getElementById('s3-sub').textContent = linkCurto ? '' : 'Não consegui salvar na nuvem agora — este link funciona igual, só é mais longo.';
+  var sub=document.getElementById('s3-sub');
+  if(linkCurto){ sub.style.display='none'; sub.textContent=''; }
+  else { sub.textContent='Não consegui salvar na nuvem agora — este link funciona igual, só é mais longo.'; sub.style.display=''; }
 }
 function gerarLink(){
   var itens=listaAtiva().itens;
